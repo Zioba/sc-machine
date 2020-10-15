@@ -87,9 +87,12 @@ public:
     if (needAppend) {
         //todo make as global constant
         ScAddr concertedKB = m_ctx.HelperFindBySystemIdtf("concertedKB_hash_iF95K2");
-        ScAddr newTypeEdge = m_ctx.CreateEdge(ScType::EdgeAccessConstPosTemp, newType, m_addr);
-        m_ctx.CreateEdge(ScType::EdgeAccessConstPosPerm, concertedKB, newTypeEdge);
-        return newTypeEdge.IsValid();
+        ScAddr x = m_ctx.CreateEdge(ScType::EdgeAccessConstPosTemp, newType, m_addr);
+        bool isAddToRoot = false;
+        if (isAddToRoot) {
+            m_ctx.CreateEdge(ScType::EdgeAccessConstPosPerm, concertedKB, x);
+        }
+        return x.IsValid();
     }
 
     return true;
