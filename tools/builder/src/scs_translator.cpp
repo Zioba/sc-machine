@@ -77,7 +77,7 @@ bool SCsTranslator::TranslateImpl(Params const & params)
 
   SCsHelper scs(m_ctx, std::make_shared<impl::FileProvider>(params.m_fileName));
     bool x = false;
-    std::string fileToCreateRoot = "ims.ostis.kb/to_check/G0.scs";
+    std::string fileToCreateRoot = "ims.ostis.kb/to_check/G1.scs";
     size_t found = params.m_fileName.find(fileToCreateRoot);
     if (found != std::string::npos) {
         x = true;
