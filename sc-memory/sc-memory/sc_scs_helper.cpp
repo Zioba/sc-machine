@@ -74,17 +74,6 @@ protected:
       {
         ResolveElement(el);
       }
-//        if (!el.GetType().IsEdge() &&
-//            !scs::TypeResolver::IsKeynodeType(el.GetIdtf()))
-//        {
-//            if (m_idtfCache.find(el.GetIdtf()) == m_idtfCache.end()) {
-//                ResolveElement(el);
-//            }
-//            else {
-//                ScType const & type = el.GetType();
-//                if ()
-//            }
-//        }
     });
   }
 
@@ -219,19 +208,20 @@ private:
           SetSCsGlobalIdtf(el.GetIdtf(), result);
         }
       }
-      else {
-          ScType const & newType = el.GetType();
-          ScType const & oldType = m_ctx.GetElementType(result);
-          if ((newType != oldType)) {
-              if (oldType.CanExtendTo(newType)) {
-                  m_ctx.SetElementSubtype(result, newType.getMRealType());
-              }
-              else {
-                  SC_LOG_WARNING("Duplicate element type");
-              }
-
-          }
-      }
+//      else {
+//          ScType const & newType = el.GetType();
+//          ScType const & oldType = m_ctx.GetElementType(result);
+//          if ((newType != oldType)) {
+//              if (oldType.CanExtendTo(newType)) {
+//                  m_ctx.SetElementSubtype(result, newType.getMRealType());
+//              }
+//              else {
+//                  if (!newType.CanExtendTo(oldType)) {
+//                      SC_LOG_WARNING("Duplicate element type for " + el.GetIdtf())
+//                  }
+//              }
+//          }
+//      }
 
       SC_ASSERT(result.IsValid(), ());
 
