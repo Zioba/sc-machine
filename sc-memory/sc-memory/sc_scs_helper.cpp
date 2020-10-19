@@ -208,20 +208,21 @@ private:
           SetSCsGlobalIdtf(el.GetIdtf(), result);
         }
       }
-//      else {
-//          ScType const & newType = el.GetType();
-//          ScType const & oldType = m_ctx.GetElementType(result);
-//          if ((newType != oldType)) {
-//              if (oldType.CanExtendTo(newType)) {
-//                  m_ctx.SetElementSubtype(result, newType.getMRealType());
-//              }
-//              else {
-//                  if (!newType.CanExtendTo(oldType)) {
-//                      SC_LOG_WARNING("Duplicate element type for " + el.GetIdtf())
-//                  }
-//              }
-//          }
-//      }
+      else {
+          ScType const & newType = el.GetType();
+          ScType const & oldType = m_ctx.GetElementType(result);
+          if ((newType != oldType)) {
+              if (oldType.CanExtendTo(newType)) {
+                  m_ctx.SetElementSubtype(result, newType.getMRealType());
+              }
+              else {
+                  if (!newType.CanExtendTo(oldType)) {
+                      //SC_THROW_EXCEPTION
+                      SC_LOG_WARNING("Duplicate element type for " + el.GetIdtf())
+                  }
+              }
+          }
+      }
 
       SC_ASSERT(result.IsValid(), ());
 
