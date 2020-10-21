@@ -218,7 +218,7 @@ private:
               else {
                   if (!newType.CanExtendTo(oldType)) {
                       //SC_THROW_EXCEPTION
-                      SC_LOG_WARNING("Duplicate element type for " + el.GetIdtf())
+                      SC_THROW_EXCEPTION(utils::ExceptionInvalidType, "Duplicate element type for " + el.GetIdtf());
                   }
               }
           }
