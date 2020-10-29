@@ -213,11 +213,20 @@ private:
           ScType const & oldType = m_ctx.GetElementType(result);
           if ((newType != oldType)) {
               if (oldType.CanExtendTo(newType)) {
+//                  if (el.GetIdtf() == "nrel_section_decomposition") {
+//                      int x = 1;
+//                      if (newType == ScType::NodeConstNoRole) {
+//                          int x = 2;
+//                      }
+//                      m_ctx.SetElementSubtype(result, newType.getMRealType());
+//                      ScType const & checkType = m_ctx.GetElementType(result);
+//                      if (checkType == ScType::NodeConstNoRole) {
+//                          int x = 3;
+//                      }
                   m_ctx.SetElementSubtype(result, newType.getMRealType());
               }
               else {
                   if (!newType.CanExtendTo(oldType)) {
-                      //SC_THROW_EXCEPTION
                       SC_THROW_EXCEPTION(utils::ExceptionInvalidType, "Duplicate element type for " + el.GetIdtf());
                   }
               }
