@@ -36,9 +36,12 @@ protected:
   {
     // generate aliases
     auto const & aliases = parser.GetAliases();
-    for (auto const & it : aliases)
-      ResolveElement(parser.GetParsedElement(it.second));
-
+    for (auto const & it : aliases) {
+        ScType const & type = parser.GetParsedElement(it.second).GetType();
+        if (!parser.GetParsedElement(it.second).GetType().IsEdge()) {
+            ResolveElement(parser.GetParsedElement(it.second));
+        }
+    }
     // generate triples
     auto const & triples = parser.GetParsedTriples();
     for (auto const & t : triples)
@@ -213,16 +216,6 @@ private:
           ScType const & oldType = m_ctx.GetElementType(result);
           if ((newType != oldType)) {
               if (oldType.CanExtendTo(newType)) {
-//                  if (el.GetIdtf() == "nrel_section_decomposition") {
-//                      int x = 1;
-//                      if (newType == ScType::NodeConstNoRole) {
-//                          int x = 2;
-//                      }
-//                      m_ctx.SetElementSubtype(result, newType.getMRealType());
-//                      ScType const & checkType = m_ctx.GetElementType(result);
-//                      if (checkType == ScType::NodeConstNoRole) {
-//                          int x = 3;
-//                      }
                   m_ctx.SetElementSubtype(result, newType.getMRealType());
               }
               else {
