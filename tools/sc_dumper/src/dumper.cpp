@@ -128,7 +128,6 @@ void run_dump()
     }
     //print all aliases
     for (auto & alias : aliasVector) {
-        //fprintf(f, "@edge_alias_%d = %lu", alias.getId(), alias.getAddr().Hash());
         x->clear();
         if (printEl3(alias.getAddr(), x)) {
             fprintf(f, "@edge_alias_%d = %s;;\n", alias.getId(), x->c_str());
@@ -406,14 +405,19 @@ string processAlias(string line) {
     return line;
 }
 
+//int argc, char *argv[]
 int main()
 {
     sc_memory_params params;
     sc_memory_params_clear(&params);
-    params.repo_path = "/home/alexander/work/0.6.0/ostis/kb.bin";
-    params.config_file = "/home/alexander/work/0.6.0/ostis/config/sc-web.ini";
-    params.ext_path = "/home/alexander/work/0.6.0/ostis/sc-machine/bin/extensions";
+    params.repo_path = "/home/alexander/work/0.6.0Release/ostis-web-platform/kb.bin";
+    params.config_file = "/home/alexander/work/0.6.0Release/ostis-web-platform/config/sc-web.ini";
+    params.ext_path = "/home/alexander/work/0.6.0Release/ostis-web-platform/sc-machine/bin/extensions";
+//    params.repo_path = argv[0];
+//    params.config_file = argv[1];
+//    params.ext_path = argv[2];
     params.clear = SC_FALSE;
+
     ScMemory::Initialize(params);
     m_ctx.reset(new ScMemoryContext(sc_access_lvl_make_max, "sc_dumper"));
 
