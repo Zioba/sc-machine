@@ -34,7 +34,4 @@ add_dependencies(sc_dumper sc-code-generator sc-kpm sc-memory sc-core)
 sc_codegen(sc_dumper ${CMAKE_CURRENT_SOURCE_DIR}/src
         ${CMAKE_CURRENT_SOURCE_DIR} "${CMAKE_CURRENT_SOURCE_DIR}/generated")
 
-
-#todo ==============================================================================================
-
 target_compile_definitions(sc_dumper PRIVATE "-DSC_MEMORY_SELF_BUILD")

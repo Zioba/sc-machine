@@ -13,7 +13,7 @@
 using namespace std;
 
 std::unique_ptr<ScMemoryContext> m_ctx;
-ScAddr conceredKB;
+ScAddr concertedKb;
 
 vector<DumpElement> nodeVector;
 vector<DumpElement> edgeVector;
@@ -21,23 +21,23 @@ vector<Alias> aliasVector;
 vector<string> linkVector;
 int uniqId;
 
-string printContent(ScAddr element)
+string getElementContent(ScAddr element)
 {
-    string data;
+    string content;
     ScStreamPtr stream = m_ctx->GetLinkContent(element);
     string str;
     if (ScStreamConverter::StreamToString(stream, str)) {
         stringstream streamString(str);
-        data = streamString.str();
+        content = streamString.str();
     }
     string format;
-    if (checkLinkFormat(element, &format)) {
-        return saveContentFile(element, data, format);
+    if (isContentHasFormat(element, &format)) {
+        content = saveContentAsFile(element, content, format);
     }
-    return data;
+    return content;
 }
 
-bool checkLinkFormat(ScAddr element, string *format) {
+bool isContentHasFormat(ScAddr element, string *format) {
     bool result = false;
     ScAddr nrel_format;
     nrel_format = m_ctx->HelperFindBySystemIdtf(NREL_FORMAT_STR);
@@ -63,7 +63,7 @@ bool checkLinkFormat(ScAddr element, string *format) {
     return result;
 }
 
-sc_char *saveContentFile(ScAddr element, string data, const string& format) {
+sc_char *saveContentAsFile(ScAddr element, string data, const string& format) {
     string filename = "content_";
     string answer = "file://content/";
     filename.append(to_string(element.Hash()));
@@ -87,22 +87,24 @@ void run_dump()
     FILE *f;
     f = fopen("/home/alexander/Desktop/KnowledgeDump.scs", "w");
     //todo make as global constant
-    string name = "concertedKB_hash_iF95K2";
-    conceredKB = m_ctx->HelperFindBySystemIdtf(name);
+    string conceredKbName = "concertedKB_hash_iF95K2";
+    concertedKb = m_ctx->HelperFindBySystemIdtf(conceredKbName);
 
     vector<string> outputLines;
-    auto x = new std::string("");
+    auto currentPrintBuffer = new std::string("");
 
     //print all constants
-    ScIterator3Ptr it = m_ctx->Iterator3(conceredKB,
+    ScIterator3Ptr it = m_ctx->Iterator3(concertedKb,
                                          ScType::EdgeAccessConstPosPerm,
                                          ScType::Const);
     while (it->Next()) {
-        ScAddr t_arc =it->Get(2);
-        x->clear();
-        if (printEl(t_arc, x)) {
-            string x2 = x->substr(1, x->size()-2);
+        ScAddr printableElement = it->Get(2);
+        currentPrintBuffer->clear();
+        if (printElement(printableElement, currentPrintBuffer)) {
+            //todo add method to format string for printing
+            string x2 = currentPrintBuffer->substr(1, currentPrintBuffer->size() - 2);
             x2.append(";;\n");
+            //no need to print systemId, cause it will be generate automatically during kb build
             size_t found = x2.find("nrel_system_identifier");
             if (found == std::string::npos) {
                 outputLines.push_back(x2);
@@ -111,14 +113,14 @@ void run_dump()
     }
     outputLines.emplace_back("\n");
     //print all vars
-    it = m_ctx->Iterator3(conceredKB,
+    it = m_ctx->Iterator3(concertedKb,
                           ScType::EdgeAccessConstPosPerm,
                           ScType::Var);
     while (it->Next()) {
         ScAddr t_arc =it->Get(2);
-        x->clear();
-        if (printEl(t_arc, x)) {
-            string x2 = x->substr(1, x->size()-2);
+        currentPrintBuffer->clear();
+        if (printElement(t_arc, currentPrintBuffer)) {
+            string x2 = currentPrintBuffer->substr(1, currentPrintBuffer->size() - 2);
             x2.append(";;\n");
             size_t found = x2.find("nrel_system_identifier");
             if (found == std::string::npos) {
@@ -126,12 +128,16 @@ void run_dump()
             }
         }
     }
-    //print all aliases
+    //print all link aliases
+    for (auto & item : linkVector) {
+        fprintf(f, "%s;;\n", item.c_str());
+    }
+    //print all edge aliases
     for (auto & alias : aliasVector) {
-        x->clear();
-        if (printEl3(alias.getAddr(), x)) {
-            fprintf(f, "@edge_alias_%d = %s;;\n", alias.getId(), x->c_str());
-            alias.setEdge(*x);
+        currentPrintBuffer->clear();
+        if (printNewElement(alias.getAddr(), currentPrintBuffer)) {
+            fprintf(f, "@edge_alias_%d = %s;;\n", alias.getId(), currentPrintBuffer->c_str());
+            alias.setEdge(*currentPrintBuffer);
         }
     }
     fprintf(f, "\n");
@@ -141,148 +147,103 @@ void run_dump()
     }
     //print all node atributes
     for (auto & node : nodeVector) {
-        x->clear();
-        if (printElFinal(node.getAddr(), x)) {
-            if (!node.getTypes().empty()) {
-                fprintf(f, "%s", x->c_str());
-            }
-            for (int j = 0; j < node.getTypes().size(); j++) {
-                fprintf(f, "<-%s;", node.getTypes().at(j).c_str());
-            }
-            if (!node.getTypes().empty()) {
-                fprintf(f, ";\n");
-            }
+        currentPrintBuffer->clear();
+        printExistingElement(node.getAddr(), currentPrintBuffer);
+        if (!node.getTypes().empty()) {
+            fprintf(f, "%s", currentPrintBuffer->c_str());
+        }
+        for (int j = 0; j < node.getTypes().size(); j++) {
+            fprintf(f, "<-%s;", node.getTypes().at(j).c_str());
+        }
+        if (!node.getTypes().empty()) {
+            fprintf(f, ";\n");
         }
     }
     nodeVector.clear();
     edgeVector.clear();
     aliasVector.clear();
+    linkVector.clear();
     outputLines.clear();
     fclose(f);
-    f = fopen("/home/alexander/Desktop/KnowledgeDumpLinks.scs", "w");
-    for (auto & item : linkVector) {
-        fprintf(f, "%s;;\n", item.c_str());
-    }
-    fclose(f);
-}
-
-bool printElFinal(ScAddr element, string *strBuilder) {
-    bool isPrinted;
-    ScType type = m_ctx->GetElementType(element);
-    if (type.IsNode()) {
-        try {
-            string idtf = m_ctx -> HelperGetSystemIdtf(element);
-            if (!idtf.empty()) {
-                strBuilder->append(idtf);
-            } else {
-                strBuilder->append("..").append(to_string(getElementIdByAddr(element)));
-            }
-        }
-        catch (...) {
-            strBuilder->append("fail");
-        }
-        return true;
-    }
-    if (type.IsLink()) {
-        strBuilder->append("..").append(to_string(getElementIdByAddr(element)));
-        return true;
-    }
-    if (type.IsEdge()) {
-        strBuilder->append("@edge_alias_").append(to_string(getElementIdByAddr(element)));
-        aliasVector.emplace_back(element, getElementIdByAddr(element));
-        return true;
-    }
-    //todo THIS BLOCK IS FOR UNKNOWN TYPE
-    try {
-        string idtf = m_ctx -> HelperGetSystemIdtf(element);
-        if (!idtf.empty()) {
-            strBuilder->append(idtf);
-        } else {
-            strBuilder->append("..").append(to_string(getElementIdByAddr(element)));
-        }
-    }
-    catch (...) {
-        strBuilder->append("fail");
-    }
-    isPrinted = true;
-    return isPrinted;
 }
 
 void printEdge(ScAddr element, const string& connector, DumpElement *dumpElement, string *strBuilder) {
-    ScAddr elem1 = m_ctx -> GetEdgeSource(element);
-    ScAddr elem2 = m_ctx -> GetEdgeTarget(element);
+    ScAddr sourceEl = m_ctx -> GetEdgeSource(element);
+    ScAddr targetEl = m_ctx -> GetEdgeTarget(element);
     strBuilder->append("(");
 
-    if (!printEl(elem1, strBuilder)) {
+    if (!printElement(sourceEl, strBuilder)) {
         //if 0, than element have system ID (no ..)
-        int x = getElementIdByAddr(elem1);
+        int x = getElementIdByAddr(sourceEl);
         if (x!=0) {
-            if (isEdge(elem1)) {
+            if (isEdge(sourceEl)) {
                 strBuilder->append("@edge_alias_").append(to_string(x));
-                aliasVector.emplace_back(elem1, x);
+                aliasVector.emplace_back(sourceEl, x);
             }
             else {
                 strBuilder->append("..").append(to_string(x));
             }
         }
         else {
-            printElFinal(elem1, strBuilder);
+            printExistingElement(sourceEl, strBuilder);
         }
     }
     strBuilder->append(connector);
-    if (!printEl(elem2, strBuilder)) {
+    if (!printElement(targetEl, strBuilder)) {
         //if 0, than element have system ID (no ..)
-        int x = getElementIdByAddr(elem2);
+        int x = getElementIdByAddr(targetEl);
         if (x!=0) {
-            if (isEdge(elem2)) {
+            if (isEdge(targetEl)) {
                 strBuilder->append("@edge_alias_").append(to_string(x));
-                aliasVector.emplace_back(elem2, x);
+                aliasVector.emplace_back(targetEl, x);
             }
             else {
                 strBuilder->append("..").append(to_string(x));
             }
         }
         else {
-            printElFinal(elem2, strBuilder);
+            printExistingElement(targetEl, strBuilder);
         }
     }
     strBuilder->append(")");
+    //todo use method to get uniqID
     dumpElement = new DumpElement(element, uniqId);
     edgeVector.push_back(*dumpElement);
     uniqId++;
 }
 
-bool printEl(ScAddr element, string* strBuilder)
+bool printElement(ScAddr element, string* strBuilder)
 {
-    bool answer = false;
-    if (isAddrExist(element)) {
-        return answer;
-    }
-    return printEl3(element, strBuilder);
+    if (isAddrExist(element))
+        return false;
+    else
+        return printNewElement(element, strBuilder);
 }
 
-bool printEl3(ScAddr element, string* strBuilder)
+bool printNewElement(ScAddr element, string* strBuilder)
 {
-    bool answer = false;
+    bool isPrinted = false;
     DumpElement *dumpElement = nullptr;
     ScType type = m_ctx->GetElementType(element);
     if (type.IsNode()) {
         try {
-            string idtf = m_ctx -> HelperGetSystemIdtf(element);
-            if (!idtf.empty()) {
-                strBuilder->append(idtf);
-                dumpElement = new DumpElement(element, 0);
-                nodeVector.push_back(*dumpElement);
-                answer = true;
+            string systemIdtf = m_ctx -> HelperGetSystemIdtf(element);
+            int elementId;
+            if (!systemIdtf.empty()) {
+                elementId = DumpElement::DEFAULT_ID_IF_ELEMENT_HAS_SYSTEM_ID;
             }
             else
             {
-                dumpElement = new DumpElement(element, uniqId);
-                nodeVector.push_back(*dumpElement);
-                strBuilder->append("..").append(to_string(uniqId));
+                elementId = uniqId;
+                //todo add method for generating id (based on uniqId)
+                systemIdtf = ".." + to_string(uniqId);
                 uniqId++;
-                answer = true;
             }
+            strBuilder->append(systemIdtf);
+            dumpElement = new DumpElement(element, elementId);
+            nodeVector.push_back(*dumpElement);
+            isPrinted = true;
+            //todo generate method for saving element type
             if ((type == ScType::NodeConstStruct) | (type == ScType::NodeVarStruct)) nodeVector.at(nodeVector.size()-1).addType("sc_node_struct");
             if ((type == ScType::NodeConstTuple) | (type == ScType::NodeVarTuple)) nodeVector.at(nodeVector.size()-1).addType("sc_node_not_binary_tuple");
             if ((type == ScType::NodeConstRole) | (type == ScType::NodeVarRole)) nodeVector.at(nodeVector.size()-1).addType("sc_node_role_relation");
@@ -290,23 +251,24 @@ bool printEl3(ScAddr element, string* strBuilder)
             if ((type == ScType::NodeConstClass) | (type == ScType::NodeVarClass)) nodeVector.at(nodeVector.size()-1).addType("sc_node_not_relation");
             if ((type == ScType::NodeConstAbstract) | (type == ScType::NodeVarAbstract)) nodeVector.at(nodeVector.size()-1).addType("sc_node_abstract");
             if ((type == ScType::NodeConstMaterial) | (type == ScType::NodeVarMaterial)) nodeVector.at(nodeVector.size()-1).addType("sc_node_material");
-            return answer;
+            return isPrinted;
         }
         catch (...) {
-            strBuilder->append("fail");
+            strBuilder->append("failed to process node element");
         }
     }
     if (type.IsLink()) {
         strBuilder->append("..").append(to_string(uniqId));
         string newLink;
-        newLink.append("..").append(to_string(uniqId)).append(" = [").append(printContent(element)).append("]");
+        newLink.append("@link_alias_").append(to_string(uniqId)).append(" = [").append(getElementContent(element)).append("]");
         linkVector.push_back(newLink);
         dumpElement = new DumpElement(element, uniqId);
         nodeVector.push_back(*dumpElement);
         uniqId++;
-        answer = true;
-        return answer;
+        isPrinted = true;
+        return isPrinted;
     }
+    //todo use this block like an edge case in separate method
     string connector;
     if (type == ScType::EdgeDCommonConst) connector = "=>";
     if (type == ScType::EdgeDCommonVar) connector = "_=>";
@@ -327,17 +289,17 @@ bool printEl3(ScAddr element, string* strBuilder)
     if (type == ScType::EdgeAccessVarFuzTemp) connector = "_~/>";
     if (!connector.empty()) {
         printEdge(element, connector, dumpElement, strBuilder);
-        answer = true;
-        return answer;
+        isPrinted = true;
+        return isPrinted;
     }
-    //todo THIS BLOCK IS FOR UNKNOWN TYPE
+    //THIS BLOCK IS FOR UNKNOWN TYPE
     try {
         string idtf = m_ctx -> HelperGetSystemIdtf(element);
         if (!idtf.empty()) {
             strBuilder->append(idtf);
             dumpElement = new DumpElement(element, 0);
             nodeVector.push_back(*dumpElement);
-            answer = true;
+            isPrinted = true;
         }
         else
         {
@@ -345,30 +307,69 @@ bool printEl3(ScAddr element, string* strBuilder)
             nodeVector.push_back(*dumpElement);
             strBuilder->append("..").append(to_string(uniqId));
             uniqId++;
-            answer = true;
+            isPrinted = true;
         }
     }
     catch (...) {
         strBuilder->append("fail");
     }
-    return answer;
+    return isPrinted;
+}
+
+void printExistingElement(ScAddr element, string *strBuilder) {
+    ScType type = m_ctx->GetElementType(element);
+    if (type.IsNode()) {
+        try {
+            string idtf = m_ctx -> HelperGetSystemIdtf(element);
+            if (!idtf.empty()) {
+                strBuilder->append(idtf);
+            } else {
+                strBuilder->append("..").append(to_string(getElementIdByAddr(element)));
+            }
+        }
+        catch (...) {
+            strBuilder->append("failed to print existing node");
+        }
+        return;
+    }
+    if (type.IsLink()) {
+        strBuilder->append("@link_alias_").append(to_string(getElementIdByAddr(element)));
+        return;
+    }
+    if (type.IsEdge()) {
+        strBuilder->append("@edge_alias_").append(to_string(getElementIdByAddr(element)));
+        aliasVector.emplace_back(element, getElementIdByAddr(element));
+        return;
+    }
+    //THIS BLOCK IS FOR UNKNOWN TYPE
+    try {
+        string idtf = m_ctx -> HelperGetSystemIdtf(element);
+        if (!idtf.empty()) {
+            strBuilder->append(idtf);
+        } else {
+            strBuilder->append("..").append(to_string(getElementIdByAddr(element)));
+        }
+    }
+    catch (...) {
+        strBuilder->append("failed to print existing element with unknown type");
+    }
 }
 
 bool isAddrExist(ScAddr addr) {
-    bool answer = false;
+    bool isExist = false;
     for (auto & node : nodeVector) {
         if (addr == node.getAddr()) {
-            answer = true;
-            return answer;
+            isExist = true;
+            return isExist;
         }
     }
     for (auto & node : edgeVector) {
         if (addr == node.getAddr()) {
-            answer = true;
-            return answer;
+            isExist = true;
+            return isExist;
         }
     }
-    return answer;
+    return isExist;
 }
 
 int getElementIdByAddr(ScAddr addr) {
@@ -382,6 +383,7 @@ int getElementIdByAddr(ScAddr addr) {
             return edge.getId();
         }
     }
+    //todo make normal exception
     return -1;
 }
 

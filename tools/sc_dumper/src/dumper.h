@@ -35,13 +35,13 @@ struct BuilderParams
     std::string m_configFile;
 };
 
-bool printEl(ScAddr element, string *strBuilder);
-bool printEl3(ScAddr element, string *strBuilder);
-bool printElFinal(ScAddr element, string *strBuilder);
+bool printElement(ScAddr element, string *strBuilder);
+bool printNewElement(ScAddr element, string *strBuilder);
+void printExistingElement(ScAddr element, string *strBuilder);
 void printEdge(ScAddr element, const string& connector, DumpElement* dumpElement, string *strBuilder);
-string printContent(ScAddr element);
-bool checkLinkFormat(ScAddr element, string *format);
-sc_char *saveContentFile(ScAddr element, string data, const string& format);
+string getElementContent(ScAddr element);
+bool isContentHasFormat(ScAddr element, string *format);
+sc_char *saveContentAsFile(ScAddr element, string data, const string& format);
 bool isAddrExist(ScAddr addr);
 int getElementIdByAddr(ScAddr addr);
 bool isEdge(ScAddr addr);
