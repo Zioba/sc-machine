@@ -212,6 +212,7 @@ private:
         }
       }
       else {
+          std::string s = el.GetIdtf();
           ScType const & newType = el.GetType();
           ScType const & oldType = m_ctx.GetElementType(result);
           if ((newType != oldType)) {
@@ -219,7 +220,8 @@ private:
                   m_ctx.SetElementSubtype(result, newType.getMRealType());
               }
               else {
-                  if (!newType.CanExtendTo(oldType)) {
+                  //Type NodeConst means that element have been called by system Id, that is why need to ignore this case as error
+                  if (newType != ScType::NodeConst) {
                       SC_THROW_EXCEPTION(utils::ExceptionInvalidType, "Duplicate element type for " + el.GetIdtf());
                   }
               }
