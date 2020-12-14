@@ -43,8 +43,11 @@ string getElementContent(ScAddr element);
 bool isContentHasFormat(ScAddr element, string *format);
 sc_char *saveContentAsFile(ScAddr element, string data, const string& format);
 bool isAddrExist(ScAddr addr);
+//return 0, if element has system ID (not ..)
 int getElementIdByAddr(ScAddr addr);
 bool isEdge(ScAddr addr);
 string processAlias(string line);
+string prepareElementToPrint(string* strBuffer);
+string resolveConnector(ScType *type);
 
 #endif //SC_MACHINE_DUMPER_H

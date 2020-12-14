@@ -42,9 +42,7 @@ bool isContentHasFormat(ScAddr element, string *format) {
     ScAddr nrel_format;
     nrel_format = m_ctx->HelperFindBySystemIdtf(NREL_FORMAT_STR);
     if (!nrel_format.IsValid()) {
-        //todo make normal exeption
-        printf("ERROR");
-        exit(0);
+      SC_THROW_EXCEPTION(utils::ExceptionInvalidState, "Error, Content has unknow format");
     }
     ScIterator5Ptr it = m_ctx->Iterator5(element,
                                          ScType::EdgeDCommonConst,
@@ -71,7 +69,6 @@ sc_char *saveContentAsFile(ScAddr element, string data, const string& format) {
     filename.append(format);
     FILE *f;
     f = fopen((DUMP_CONTENT_FOLDER + filename).c_str(), "w");
-    //todo rework this method
     for (int i = 0; i < data.size(); i++) {
         fprintf(f, "%c", data[i]);
     }
@@ -86,7 +83,6 @@ void run_dump()
 {
     FILE *f;
     f = fopen("/home/alexander/Desktop/KnowledgeDump.scs", "w");
-    //todo make as global constant
     string conceredKbName = "concertedKB_hash_iF95K2";
     concertedKb = m_ctx->HelperFindBySystemIdtf(conceredKbName);
 
@@ -101,13 +97,11 @@ void run_dump()
         ScAddr printableElement = it->Get(2);
         currentPrintBuffer->clear();
         if (printElement(printableElement, currentPrintBuffer)) {
-            //todo add method to format string for printing
-            string x2 = currentPrintBuffer->substr(1, currentPrintBuffer->size() - 2);
-            x2.append(";;\n");
+          string releaseElement = prepareElementToPrint(currentPrintBuffer);
             //no need to print systemId, cause it will be generate automatically during kb build
-            size_t found = x2.find("nrel_system_identifier");
+            size_t found = releaseElement.find("nrel_system_identifier");
             if (found == std::string::npos) {
-                outputLines.push_back(x2);
+                outputLines.push_back(releaseElement);
             }
         }
     }
@@ -190,7 +184,6 @@ void printEdge(ScAddr element, const string& connector, DumpElement *dumpElement
     }
     strBuilder->append(connector);
     if (!printElement(targetEl, strBuilder)) {
-        //if 0, than element have system ID (no ..)
         int x = getElementIdByAddr(targetEl);
         if (x!=0) {
             if (isEdge(targetEl)) {
@@ -210,6 +203,33 @@ void printEdge(ScAddr element, const string& connector, DumpElement *dumpElement
     dumpElement = new DumpElement(element, uniqId);
     edgeVector.push_back(*dumpElement);
     uniqId++;
+}
+
+string prepareElementToPrint(string* strBuffer)
+{
+  string result = strBuffer->substr(1, strBuffer->size() - 2);
+  return result.append(";;\n");
+}
+
+string resolveConnector(ScType *type) {
+  if (*type == ScType::EdgeDCommonConst) return "=>";
+  if (*type == ScType::EdgeDCommonVar) return "_=>";
+  if (*type == ScType::EdgeUCommonConst) return "<=>";
+  if (*type == ScType::EdgeUCommonVar) return "_<=>";
+  if (*type == ScType::EdgeAccess) return "..>";
+  if (*type == ScType::EdgeAccessConstPosPerm) return "->";
+  if (*type == ScType::EdgeAccessVarPosPerm) return "_->";
+  if (*type == ScType::EdgeAccessConstNegPerm) return "-|>";
+  if (*type == ScType::EdgeAccessVarNegPerm) return "_-|>";
+  if (*type == ScType::EdgeAccessConstFuzPerm) return "-/>";
+  if (*type == ScType::EdgeAccessVarFuzPerm) return "_-/>";
+  if (*type == ScType::EdgeAccessConstPosTemp) return "~>";
+  if (*type == ScType::EdgeAccessVarPosTemp) return "_~>";
+  if (*type == ScType::EdgeAccessConstNegTemp) return "~|>";
+  if (*type == ScType::EdgeAccessVarNegTemp) return "_~|>";
+  if (*type == ScType::EdgeAccessConstFuzTemp) return "~/>";
+  if (*type == ScType::EdgeAccessVarFuzTemp) return "_~/>";
+  return "";
 }
 
 bool printElement(ScAddr element, string* strBuilder)
@@ -243,7 +263,6 @@ bool printNewElement(ScAddr element, string* strBuilder)
             dumpElement = new DumpElement(element, elementId);
             nodeVector.push_back(*dumpElement);
             isPrinted = true;
-            //todo generate method for saving element type
             if ((type == ScType::NodeConstStruct) | (type == ScType::NodeVarStruct)) nodeVector.at(nodeVector.size()-1).addType("sc_node_struct");
             if ((type == ScType::NodeConstTuple) | (type == ScType::NodeVarTuple)) nodeVector.at(nodeVector.size()-1).addType("sc_node_not_binary_tuple");
             if ((type == ScType::NodeConstRole) | (type == ScType::NodeVarRole)) nodeVector.at(nodeVector.size()-1).addType("sc_node_role_relation");
@@ -258,7 +277,7 @@ bool printNewElement(ScAddr element, string* strBuilder)
         }
     }
     if (type.IsLink()) {
-        strBuilder->append("..").append(to_string(uniqId));
+        strBuilder->append("@link_alias_").append(to_string(uniqId));
         string newLink;
         newLink.append("@link_alias_").append(to_string(uniqId)).append(" = [").append(getElementContent(element)).append("]");
         linkVector.push_back(newLink);
@@ -268,25 +287,7 @@ bool printNewElement(ScAddr element, string* strBuilder)
         isPrinted = true;
         return isPrinted;
     }
-    //todo use this block like an edge case in separate method
-    string connector;
-    if (type == ScType::EdgeDCommonConst) connector = "=>";
-    if (type == ScType::EdgeDCommonVar) connector = "_=>";
-    if (type == ScType::EdgeUCommonConst) connector = "<=>";
-    if (type == ScType::EdgeUCommonVar) connector = "_<=>";
-    if (type == ScType::EdgeAccess) connector = "..>";
-    if (type == ScType::EdgeAccessConstPosPerm) connector = "->";
-    if (type == ScType::EdgeAccessVarPosPerm) connector = "_->";
-    if (type == ScType::EdgeAccessConstNegPerm) connector = "-|>";
-    if (type == ScType::EdgeAccessVarNegPerm) connector = "_-|>";
-    if (type == ScType::EdgeAccessConstFuzPerm) connector = "-/>";
-    if (type == ScType::EdgeAccessVarFuzPerm) connector = "_-/>";
-    if (type == ScType::EdgeAccessConstPosTemp) connector = "~>";
-    if (type == ScType::EdgeAccessVarPosTemp) connector = "_~>";
-    if (type == ScType::EdgeAccessConstNegTemp) connector = "~|>";
-    if (type == ScType::EdgeAccessVarNegTemp) connector = "_~|>";
-    if (type == ScType::EdgeAccessConstFuzTemp) connector = "~/>";
-    if (type == ScType::EdgeAccessVarFuzTemp) connector = "_~/>";
+    string connector = resolveConnector(&type);
     if (!connector.empty()) {
         printEdge(element, connector, dumpElement, strBuilder);
         isPrinted = true;
@@ -373,18 +374,17 @@ bool isAddrExist(ScAddr addr) {
 }
 
 int getElementIdByAddr(ScAddr addr) {
-    for (auto & node : nodeVector) {
-        if (addr == node.getAddr()) {
-            return node.getId();
-        }
+  for (auto & node : nodeVector) {
+    if (addr == node.getAddr()) {
+      return node.getId();
     }
-    for (auto & edge : edgeVector) {
-        if (addr == edge.getAddr()) {
-            return edge.getId();
-        }
+  }
+  for (auto & edge : edgeVector) {
+    if (addr == edge.getAddr()) {
+      return edge.getId();
     }
-    //todo make normal exception
-    return -1;
+  }
+  SC_THROW_EXCEPTION(utils::ExceptionInvalidState, "Element was marked as resolved, but not exist.");
 }
 
 bool isEdge(ScAddr addr) {
@@ -407,17 +407,14 @@ string processAlias(string line) {
     return line;
 }
 
-//int argc, char *argv[]
 int main()
 {
+  //todo make loading the same as for builder
     sc_memory_params params;
     sc_memory_params_clear(&params);
     params.repo_path = "/home/alexander/work/0.6.0Release/ostis-web-platform/kb.bin";
     params.config_file = "/home/alexander/work/0.6.0Release/ostis-web-platform/config/sc-web.ini";
     params.ext_path = "/home/alexander/work/0.6.0Release/ostis-web-platform/sc-machine/bin/extensions";
-//    params.repo_path = argv[0];
-//    params.config_file = argv[1];
-//    params.ext_path = argv[2];
     params.clear = SC_FALSE;
 
     ScMemory::Initialize(params);

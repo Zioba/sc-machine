@@ -1,4 +1,3 @@
-
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.h" "src/*.hpp")
 
 if (${WIN32})
