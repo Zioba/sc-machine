@@ -161,6 +161,12 @@ bool Builder::Run(BuilderParams const & params)
     ScConsole::PrintLine() << ScConsole::Color::LightBlue << "Total: " << ScConsole::Color::White << stats.GetAllNum();
   }
 
+  ScAddr x = m_ctx->HelperFindBySystemIdtf("kb_build_done");
+  if (x.IsValid()) {
+    ScAddr x2 = m_ctx->CreateNode(ScType::NodeConst);
+    m_ctx->CreateEdge(ScType::EdgeAccess, x, x2);
+  }
+
   m_ctx.reset();
 
   ScMemory::Shutdown(true);

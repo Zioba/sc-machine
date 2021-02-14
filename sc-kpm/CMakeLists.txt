@@ -15,6 +15,7 @@ endforeach( OUTPUTCONFIG CMAKE_CONFIGURATION_TYPES )
 add_subdirectory(sc-ui)
 add_subdirectory(sc-search)
 add_subdirectory(sc-utils)
+add_subdirectory(exampleModule)
 
 add_custom_target(sc-kpm)
 
