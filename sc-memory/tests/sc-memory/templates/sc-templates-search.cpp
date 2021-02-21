@@ -653,46 +653,64 @@ struct futureElement
 //  }
 //}
 
-//TEST_F(ScTemplateSearchTest, elimination_agent_implementation)
-//{
-//  ScAddr systemIdtf = m_ctx->HelperFindBySystemIdtf("nrel_system_identifier");
-//  ScAddr addr;
-//  ScAddr a = m_ctx->CreateNode(ScType::Node);
-//  ScAddr b = m_ctx->CreateNode(ScType::Node);
-//  ScAddr link = m_ctx->CreateLink();
-//  sc_char * idtf = "a";
-//  ScStreamPtr stream;
-//  stream.reset(new ScStream(idtf, sizeof(*idtf), SC_STREAM_FLAG_READ | SC_STREAM_FLAG_SEEK));
-//  m_ctx->SetLinkContent(link, stream);
-//  m_ctx->HelperSetSystemIdtf("a", a);
-//  ScAddr arc = m_ctx->CreateEdge(ScType::EdgeDCommonConst, b, link);
-//  m_ctx->CreateEdge(ScType::EdgeAccessConstPosPerm, systemIdtf, arc);
-//  std::string x = m_ctx->HelperGetSystemIdtf(a);
-//  std::string x2 = m_ctx->HelperGetSystemIdtf(b);
-//
-//  EXPECT_TRUE(a.IsValid());
-//
-//  ScTemplate templ;
-//  templ.TripleWithRelation(
-//        ScType::Unknown,
-//        ScType::EdgeDCommonVar,
-//        ScType::Link,
-//        ScType::EdgeAccessVarPosPerm,
-//        systemIdtf);
-//
-//
-//  ScTemplateSearchResult res;
-//  EXPECT_TRUE(m_ctx->HelperSearchTemplate(templ, res));
-//  for (int i = 0; i < res.Size()-1; i++)
-//  {
-//    std::string str1 = m_ctx->HelperGetSystemIdtf(res[i][0]);
-//    for (int j = i+1; j < res.Size(); j++)
-//    {
-//      std::string str2 = m_ctx->HelperGetSystemIdtf(res[j][0]);
-//      if (str1 == str2)
-//      {
-//        //do elimination here
-//        std::cout << str1;
+TEST_F(ScTemplateSearchTest, erase_agent_implementation)
+{
+  ScAddr a = m_ctx->CreateNode(ScType::Node);
+  EXPECT_TRUE(a.IsValid());
+
+  ScAddr depends[10000];
+  int size = 0;
+
+  m_ctx->GetDepends(a, depends, &size);
+
+  std::cout << size;
+
+
+}
+
+TEST_F(ScTemplateSearchTest, elimination_agent_implementation)
+{
+  ScAddr systemIdtf = m_ctx->HelperFindBySystemIdtf("nrel_system_identifier");
+  ScAddr a = m_ctx->CreateNode(ScType::Node);
+  ScAddr b = m_ctx->CreateNode(ScType::Node);
+  ScAddr link = m_ctx->CreateLink();
+  sc_char * idtf = "a";
+  ScStreamPtr stream;
+  stream.reset(new ScStream(idtf, sizeof(*idtf), SC_STREAM_FLAG_READ | SC_STREAM_FLAG_SEEK));
+  m_ctx->SetLinkContent(link, stream);
+  m_ctx->HelperSetSystemIdtf("a", a);
+  ScAddr arc = m_ctx->CreateEdge(ScType::EdgeDCommonConst, b, link);
+  m_ctx->CreateEdge(ScType::EdgeAccessConstPosPerm, systemIdtf, arc);
+  std::string x = m_ctx->HelperGetSystemIdtf(a);
+  std::string x2 = m_ctx->HelperGetSystemIdtf(b);
+
+  EXPECT_TRUE(a.IsValid());
+
+  ScTemplatePtr templ = ScTemplateBuilder().TripleWithRelation(
+        ScType::Unknown >> "node",
+        ScType::EdgeDCommonVar,
+        ScType::Link,
+        ScType::EdgeAccessVarPosPerm,
+        systemIdtf).Make();
+
+  ScTemplateSearch search(*m_ctx, *templ);
+  ScTemplateSearch::Iterator found = search.begin();
+
+  //EXPECT_TRUE(m_ctx->HelperSearchTemplate(templ, res));
+  while (found != search.end()) {
+    std::string str1 = m_ctx->HelperGetSystemIdtf(found["node"]);
+    ScTemplateSearch::Iterator found2 = ++found;
+    while (found2 != search.end()) {
+      std::string str2 = m_ctx->HelperGetSystemIdtf(found2["node"]);
+      ++found2;
+      if (str1 == str2)
+      {
+        //do elimination here
+        std::cout << str1;
+      }
+    }
+    ++found;
+  }
 //        std::vector<ScAddr> cache;
 //        ScAddr newElement = m_ctx->CreateNode(m_ctx->GetElementType(res[i][0]));
 //        ScIterator3Ptr const iter3 = m_ctx->Iterator3(
@@ -703,8 +721,8 @@ struct futureElement
 //        {
 //          if (!m_ctx->GetElementType(iter3->Get(2)).IsEdge())
 //          {
-            //check dependencies before
-//            checkAndRemoveDependencies(m_ctx, iter3->Get(2), &newElement, &cache);
+//            //check dependencies before
+//            //checkAndRemoveDependencies(m_ctx, iter3->Get(2), &newElement, &cache);
 //            ScIterator3Ptr const iter33 = m_ctx->Iterator3(
 //                  iter3->Get(1),
 //                  ScType::Unknown,
@@ -714,7 +732,7 @@ struct futureElement
 //            m_ctx->CreateEdge(m_ctx->GetElementType(iter3->Get(1)), newElement, iter3->Get(2));
 //          }
 //        }
-//      }
-//    }
-//  }
-//}
+}
+
+
+

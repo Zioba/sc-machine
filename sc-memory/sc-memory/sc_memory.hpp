@@ -94,6 +94,7 @@ public:
   _SC_EXTERN bool IsElement(ScAddr const & addr) const;
   //! Erase element from sc-memory and returns true on success; otherwise returns false.
   _SC_EXTERN bool EraseElement(ScAddr const & addr);
+  _SC_EXTERN bool GetDepends(ScAddr const & addr, ScAddr *depends, int *size);
 
   _SC_EXTERN ScAddr CreateNode(ScType const & type);
   _SC_EXTERN ScAddr CreateLink(ScType const & type = ScType::LinkConst);

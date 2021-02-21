@@ -55,6 +55,8 @@ sc_addr sc_storage_element_new_access(const sc_memory_context *ctx, sc_type type
  */
 sc_result sc_storage_element_free(sc_memory_context *ctx, sc_addr addr);
 
+sc_result sc_storage_get_depends_element(sc_memory_context *ctx, sc_addr addr, sc_addr** depended_list, int *size);
+
 /*! Create new sc-node
  * @param type Type of new sc-node
  * @return Return sc-addr of created sc-node or empty sc-addr if sc-node wasn't created

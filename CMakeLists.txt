@@ -10,8 +10,8 @@ set(SC_MACHINE_ROOT ${CMAKE_CURRENT_LIST_DIR})
 set(SC_MACHINE_THIRDPARTY_PATH "${SC_MACHINE_ROOT}/thirdparty")
 
 option (SC_AUTO_TEST "Flag to build for automation testing" OFF)
-option (SC_KPM_SCP "Flag to build SCP module" OFF)
-option (SC_BUILD_SCTP "Flag to turn on/off sctp protocol support" OFF)
+option (SC_KPM_SCP "Flag to build SCP module" ON)
+option (SC_BUILD_SCTP "Flag to turn on/off sctp protocol support" ON)
 
 set(SC_USE_SANITIZER "none" CACHE STRING "Build with specified sanitizer")
 set_property(CACHE SC_USE_SANITIZER PROPERTY STRINGS none address memory)

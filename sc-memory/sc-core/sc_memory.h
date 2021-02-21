@@ -84,6 +84,8 @@ _SC_EXTERN sc_bool sc_memory_is_element(sc_memory_context const * ctx, sc_addr a
 //! Remove sc-element from sc-memory
 _SC_EXTERN sc_result sc_memory_element_free(sc_memory_context * ctx, sc_addr addr);
 
+_SC_EXTERN sc_result sc_memory_get_depends_element(sc_memory_context * ctx, sc_addr addr, sc_addr **dep_el, int *size);
+
 /*! Create new sc-node
  * @param type Type of new sc-node
  * @return Return sc-addr of created sc-node

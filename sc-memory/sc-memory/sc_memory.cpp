@@ -240,6 +240,13 @@ bool ScMemoryContext::EraseElement(ScAddr const & addr)
   return sc_memory_element_free(m_context, *addr) == SC_RESULT_OK;
 }
 
+bool ScMemoryContext::GetDepends(ScAddr const & addr, ScAddr *depends, int *size)
+{
+  SC_ASSERT(IsValid(), ());
+  SC_ASSERT(addr.IsValid(), ());
+  return sc_memory_get_depends_element(m_context, *addr, reinterpret_cast<sc_addr **>(&depends), size) == SC_RESULT_OK;
+}
+
 ScAddr ScMemoryContext::CreateNode(ScType const & type)
 {
   SC_ASSERT(IsValid(), ());

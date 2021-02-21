@@ -256,6 +256,11 @@ sc_result sc_memory_element_free(sc_memory_context * ctx, sc_addr addr)
   return sc_storage_element_free(ctx, addr);
 }
 
+sc_result sc_memory_get_depends_element(sc_memory_context * ctx, sc_addr addr, sc_addr **dep_el, int *size)
+{
+  return sc_storage_get_depends_element(ctx, addr, dep_el, size);
+}
+
 sc_addr sc_memory_node_new(const sc_memory_context * ctx, sc_type type)
 {
   return sc_storage_node_new(ctx, type);

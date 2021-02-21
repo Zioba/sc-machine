@@ -35,6 +35,7 @@ sc_result SubdividingSearchAgent::Run(ScAddr const & listenAddr)
   ms_context->CreateEdge(ScType::EdgeAccessConstPosPerm, systemIdtf, arc);
 
   ScTemplate templ;
+  //templ.
   templ.TripleWithRelation(
         ScType::Unknown,
         ScType::EdgeDCommonVar,

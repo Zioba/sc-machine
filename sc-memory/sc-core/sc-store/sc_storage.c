@@ -589,6 +589,325 @@ unlock:
   return result;
 }
 
+sc_result sc_storage_get_depends_element(sc_memory_context *ctx, sc_addr addr, sc_addr** depended_list, int *size)
+{
+  GHashTable *remove_table = 0, *lock_table = 0;
+  GSList *remove_list = 0;
+  sc_result result = SC_RESULT_OK;
+
+  g_mutex_lock(&s_mutex_free);
+
+  // first of all we need to collect and lock all elements
+  sc_element *el;
+  if (sc_storage_element_lock(addr, &el) != SC_RESULT_OK)
+  {
+    g_mutex_unlock(&s_mutex_free);
+    return SC_RESULT_ERROR;
+  }
+
+  g_assert(el != 0);
+  if (el->flags.type == 0 || el->flags.type & sc_flag_request_deletion)
+  {
+    g_mutex_unlock(&s_mutex_free);
+    sc_storage_element_unlock(addr);
+    return SC_RESULT_ERROR;
+  }
+
+  remove_table = g_hash_table_new(g_direct_hash, g_direct_equal);
+  lock_table = g_hash_table_new(g_direct_hash, g_direct_equal);
+  g_hash_table_insert(remove_table, GUINT_TO_POINTER(SC_ADDR_LOCAL_TO_INT(addr)), el);
+  g_hash_table_insert(lock_table, GUINT_TO_POINTER(SC_ADDR_LOCAL_TO_INT(addr)), el);
+
+  remove_list = g_slist_append(remove_list, GUINT_TO_POINTER(SC_ADDR_LOCAL_TO_INT(addr)));
+  while (remove_list != 0)
+  {
+    // get sc-addr for removing
+    sc_uint32 addr_int = GPOINTER_TO_UINT(remove_list->data);
+    sc_addr _addr;
+    _addr.seg = SC_ADDR_LOCAL_SEG_FROM_INT(addr_int);
+    _addr.offset = SC_ADDR_LOCAL_OFFSET_FROM_INT(addr_int);
+
+    gpointer p_addr = GUINT_TO_POINTER(addr_int);
+
+    // go to next sc-addr in list
+    remove_list = g_slist_delete_link(remove_list, remove_list);
+
+    if (!sc_access_lvl_check_write(ctx->access_levels, el->flags.access_levels))
+    {
+      result = SC_RESULT_ERROR_NO_WRITE_RIGHTS;
+      goto unlock;
+    }
+
+    el = g_hash_table_lookup(lock_table, p_addr);
+    if (el == null_ptr)
+    {
+      STORAGE_CHECK_CALL(sc_storage_element_lock(_addr, &el));
+
+      g_assert(el->flags.type != 0);
+      g_hash_table_insert(remove_table, p_addr, el);
+      g_hash_table_insert(lock_table, p_addr, el);
+    }
+
+    if (el->flags.type & sc_type_arc_mask)
+    {
+      // lock begin and end elements of arc
+      sc_element *el2 = 0;
+      p_addr = GUINT_TO_POINTER(SC_ADDR_LOCAL_TO_INT(el->arc.begin));
+      if ((el2 = g_hash_table_lookup(lock_table, p_addr)) == null_ptr)
+      {
+        STORAGE_CHECK_CALL(sc_storage_element_lock(el->arc.begin, &el2));
+        g_hash_table_insert(lock_table, p_addr, el2);
+      }
+
+      p_addr = GUINT_TO_POINTER(SC_ADDR_LOCAL_TO_INT(el->arc.end));
+      if ((el2 = g_hash_table_lookup(lock_table, p_addr)) == null_ptr)
+      {
+        el2 = 0;
+        STORAGE_CHECK_CALL(sc_storage_element_lock(el->arc.end, &el2));
+        g_hash_table_insert(lock_table, p_addr, el2);
+      }
+
+      // lock next/prev arcs in out/in lists
+      if (SC_ADDR_IS_NOT_EMPTY(el->arc.prev_out_arc))
+      {
+        p_addr = GUINT_TO_POINTER(SC_ADDR_LOCAL_TO_INT(el->arc.prev_out_arc));
+        if (g_hash_table_lookup(lock_table, p_addr) == null_ptr)
+        {
+          el2 = 0;
+          STORAGE_CHECK_CALL(sc_storage_element_lock(el->arc.prev_out_arc, &el2));
+          g_assert(el2 != 0);
+          g_hash_table_insert(lock_table, p_addr, el2);
+        }
+      }
+
+      if (SC_ADDR_IS_NOT_EMPTY(el->arc.prev_in_arc))
+      {
+        p_addr = GUINT_TO_POINTER(SC_ADDR_LOCAL_TO_INT(el->arc.prev_in_arc));
+        if (g_hash_table_lookup(lock_table, p_addr) == null_ptr)
+        {
+          el2 = 0;
+          STORAGE_CHECK_CALL(sc_storage_element_lock(el->arc.prev_in_arc, &el2));
+          g_assert(el2 != 0);
+          g_hash_table_insert(lock_table, p_addr, el2);
+        }
+      }
+
+      if (SC_ADDR_IS_NOT_EMPTY(el->arc.next_out_arc))
+      {
+        p_addr = GUINT_TO_POINTER(SC_ADDR_LOCAL_TO_INT(el->arc.next_out_arc));
+        if (g_hash_table_lookup(lock_table, p_addr) == null_ptr)
+        {
+          el2 = 0;
+          STORAGE_CHECK_CALL(sc_storage_element_lock(el->arc.next_out_arc, &el2));
+          g_assert(el2 != 0);
+          g_hash_table_insert(lock_table, p_addr, el2);
+        }
+      }
+
+      if (SC_ADDR_IS_NOT_EMPTY(el->arc.next_in_arc))
+      {
+        p_addr = GUINT_TO_POINTER(SC_ADDR_LOCAL_TO_INT(el->arc.next_in_arc));
+        if (g_hash_table_lookup(lock_table, p_addr) == null_ptr)
+        {
+          el2 = 0;
+          STORAGE_CHECK_CALL(sc_storage_element_lock(el->arc.next_in_arc, &el2));
+          g_assert(el2 != 0);
+          g_hash_table_insert(lock_table, p_addr, el2);
+        }
+      }
+    }
+
+    // Iterate all connectors for deleted element and append them into remove_list
+    _addr = el->first_out_arc;
+    while (SC_ADDR_IS_NOT_EMPTY(_addr))
+    {
+      gpointer p_addr = GUINT_TO_POINTER(SC_ADDR_LOCAL_TO_INT(_addr));
+      sc_element *el2 = g_hash_table_lookup(remove_table, p_addr);
+
+      if (el2 == null_ptr)
+      {
+        el2 = g_hash_table_lookup(lock_table, p_addr);
+        if (el2 == null_ptr)
+        {
+          sc_storage_element_lock(_addr, &el2);
+          g_hash_table_insert(lock_table, p_addr, el2);
+        }
+
+        g_assert(el2 != null_ptr);
+        g_hash_table_insert(remove_table, p_addr, el2);
+
+        remove_list = g_slist_append(remove_list, p_addr);
+      }
+
+      _addr = el2->arc.next_out_arc;
+    }
+
+    _addr = el->first_in_arc;
+    while (SC_ADDR_IS_NOT_EMPTY(_addr))
+    {
+      gpointer p_addr = GUINT_TO_POINTER(SC_ADDR_LOCAL_TO_INT(_addr));
+      sc_element *el2 = g_hash_table_lookup(remove_table, p_addr);
+
+      if (el2 == null_ptr)
+      {
+        el2 = g_hash_table_lookup(lock_table, p_addr);
+        if (el2 == null_ptr)
+        {
+          sc_storage_element_lock(_addr, &el2);
+          g_hash_table_insert(lock_table, p_addr, el2);
+        }
+
+        g_assert(el2 != null_ptr);
+        g_hash_table_insert(remove_table, p_addr, el2);
+
+        remove_list = g_slist_append(remove_list, p_addr);
+      }
+
+      _addr = el2->arc.next_in_arc;
+    }
+
+    // clean temp addr
+    SC_ADDR_MAKE_EMPTY(_addr);
+  }
+
+  // now we need to erase all elements
+  GHashTableIter iter;
+  g_hash_table_iter_init(&iter, remove_table);
+  gpointer key, value;
+  while (g_hash_table_iter_next(&iter, &key, &value) == TRUE)
+  {
+    el = value;
+    sc_uint32 uint_addr = GPOINTER_TO_UINT(key);
+    gpointer p_addr;
+    addr.offset = SC_ADDR_LOCAL_OFFSET_FROM_INT(uint_addr);
+    addr.seg = SC_ADDR_LOCAL_SEG_FROM_INT(uint_addr);
+    sc_access_levels el_access = el->flags.access_levels;
+
+    if (el->flags.type & sc_type_link)
+    {
+      sc_check_sum sum;
+
+      if (el->flags.type & sc_flag_link_self_container)
+      {
+        sc_link_self_container_calculate_checksum(el, &sum);
+      }
+      else
+      {
+        memcpy(&sum.data[0], el->content.data, SC_CHECKSUM_LEN);
+        sum.len = SC_CHECKSUM_LEN;
+      }
+
+      if (sc_element_is_checksum_empty(el) == SC_FALSE)
+      {
+        //STORAGE_CHECK_CALL(sc_fs_storage_remove_content_addr(addr, &sum));
+      }
+    }
+    else if (el->flags.type & sc_type_arc_mask)
+    {
+      // output arcs
+      sc_addr prev_arc = el->arc.prev_out_arc;
+      sc_addr next_arc = el->arc.next_out_arc;
+
+      if (SC_ADDR_IS_NOT_EMPTY(prev_arc))
+      {
+        p_addr = GUINT_TO_POINTER(SC_ADDR_LOCAL_TO_INT(prev_arc));
+        sc_element *prev_el_arc = g_hash_table_lookup(lock_table, p_addr);
+        g_assert(prev_el_arc != null_ptr);
+        prev_el_arc->arc.next_out_arc = next_arc;
+      }
+
+      if (SC_ADDR_IS_NOT_EMPTY(next_arc))
+      {
+        p_addr = GUINT_TO_POINTER(SC_ADDR_LOCAL_TO_INT(next_arc));
+        sc_element *next_el_arc = g_hash_table_lookup(lock_table, p_addr);
+        g_assert(next_el_arc != null_ptr);
+        next_el_arc->arc.prev_out_arc = prev_arc;
+      }
+
+      sc_element *b_el = g_hash_table_lookup(lock_table, GUINT_TO_POINTER(SC_ADDR_LOCAL_TO_INT(el->arc.begin)));
+      sc_bool need_unlock = SC_FALSE;
+      if (b_el == null_ptr)
+      {
+        STORAGE_CHECK_CALL(sc_storage_element_lock(el->arc.begin, &b_el));
+        need_unlock = SC_TRUE;
+      }
+      if (SC_ADDR_IS_EQUAL(addr, b_el->first_out_arc))
+        b_el->first_out_arc = next_arc;
+
+      //sc_event_emit(ctx, el->arc.begin, b_el->flags.access_levels, SC_EVENT_REMOVE_OUTPUT_ARC, addr, el->arc.end);
+
+      if (need_unlock)
+        sc_storage_element_unlock(el->arc.begin);
+
+      // input arcs
+      prev_arc = el->arc.prev_in_arc;
+      next_arc = el->arc.next_in_arc;
+
+      if (SC_ADDR_IS_NOT_EMPTY(prev_arc))
+      {
+        p_addr = GUINT_TO_POINTER(SC_ADDR_LOCAL_TO_INT(prev_arc));
+        sc_element *prev_el_arc = g_hash_table_lookup(lock_table, p_addr);
+        g_assert(prev_el_arc != null_ptr);
+        prev_el_arc->arc.next_in_arc = next_arc;
+      }
+
+      if (SC_ADDR_IS_NOT_EMPTY(next_arc))
+      {
+        p_addr = GUINT_TO_POINTER(SC_ADDR_LOCAL_TO_INT(next_arc));
+        sc_element *next_el_arc = g_hash_table_lookup(lock_table, p_addr);
+        g_assert(next_el_arc != null_ptr);
+        next_el_arc->arc.prev_in_arc = prev_arc;
+      }
+
+      need_unlock = SC_FALSE;
+      sc_element *e_el = g_hash_table_lookup(lock_table, GUINT_TO_POINTER(SC_ADDR_LOCAL_TO_INT(el->arc.end)));
+      if (e_el == null_ptr)
+      {
+        STORAGE_CHECK_CALL(sc_storage_element_lock(el->arc.end, &e_el));
+        need_unlock = SC_TRUE;
+      }
+      if (SC_ADDR_IS_EQUAL(addr, e_el->first_in_arc))
+        e_el->first_in_arc = next_arc;
+
+      //sc_event_emit(ctx, el->arc.end, e_el->flags.access_levels, SC_EVENT_REMOVE_INPUT_ARC, addr, el->arc.begin);
+
+      if (need_unlock)
+        sc_storage_element_unlock(el->arc.end);
+    }
+
+    el->flags.type |= sc_flag_request_deletion;
+    //sc_storage_element_unref(addr);
+
+    //sc_event_emit(ctx, addr, el_access, SC_EVENT_REMOVE_ELEMENT, empty, empty);
+
+    // remove registered events before deletion
+    //sc_event_notify_element_deleted(addr);
+    depended_list[size] = addr;
+    size++;
+  }
+
+    unlock:
+
+  // now unlock elements
+  g_hash_table_iter_init(&iter, lock_table);
+  while (g_hash_table_iter_next(&iter, &key, &value) == TRUE)
+  {
+    sc_uint32 uint_addr = GPOINTER_TO_UINT(key);
+    addr.offset = SC_ADDR_LOCAL_OFFSET_FROM_INT(uint_addr);
+    addr.seg = SC_ADDR_LOCAL_SEG_FROM_INT(uint_addr);
+
+    sc_storage_element_unlock(addr);
+  }
+
+  g_mutex_unlock(&s_mutex_free);
+
+  g_slist_free(remove_list);
+  g_hash_table_destroy(remove_table);
+  g_hash_table_destroy(lock_table);
+
+  return result;
+}
+
 sc_addr sc_storage_node_new(const sc_memory_context *ctx, sc_type type)
 {
   return sc_storage_node_new_ext(ctx, type, ctx->access_levels);
