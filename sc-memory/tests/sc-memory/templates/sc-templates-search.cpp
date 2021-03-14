@@ -613,11 +613,26 @@ TEST_F(ScTemplateSearchTest, parameters_invalid_assign_non_existing)
         utils::ExceptionItemNotFound);
 }
 
-struct futureElement
+class FutureElement
 {
+public:
   ScType type;
-  ScAddr *src;
-  ScAddr *trg;
+  ScAddr oldAddr;
+  ScAddr newAddr;
+  int src;
+  int trg;
+
+  FutureElement(ScType type, ScAddr oldAddr, ScAddr newAddr, int src, int trg) {
+    this->type = type;
+    this->oldAddr = oldAddr;
+    this->newAddr = newAddr;
+    this->src = src;
+    this->trg = trg;
+  }
+
+  ~FutureElement() {
+
+  }
 };
 
 //void checkAndRemoveDependencies(std::unique_ptr<ScMemoryContext> m_ctx, ScAddr *addr, ScAddr *root, std::vector<ScAddr> *cache)

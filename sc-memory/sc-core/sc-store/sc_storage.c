@@ -588,7 +588,10 @@ unlock:
 
   return result;
 }
-
+sc_result sc_storage_get_depends_element(sc_memory_context *ctx, sc_addr addr, sc_addr** depended_list, int *size) {
+  return (sc_result) NULL;
+}
+/*
 sc_result sc_storage_get_depends_element(sc_memory_context *ctx, sc_addr addr, sc_addr** depended_list, int *size)
 {
   GHashTable *remove_table = 0, *lock_table = 0;
@@ -875,7 +878,7 @@ sc_result sc_storage_get_depends_element(sc_memory_context *ctx, sc_addr addr, s
         sc_storage_element_unlock(el->arc.end);
     }
 
-    el->flags.type |= sc_flag_request_deletion;
+    //el->flags.type |= sc_flag_request_deletion;
     //sc_storage_element_unref(addr);
 
     //sc_event_emit(ctx, addr, el_access, SC_EVENT_REMOVE_ELEMENT, empty, empty);
@@ -907,7 +910,7 @@ sc_result sc_storage_get_depends_element(sc_memory_context *ctx, sc_addr addr, s
 
   return result;
 }
-
+*/
 sc_addr sc_storage_node_new(const sc_memory_context *ctx, sc_type type)
 {
   return sc_storage_node_new_ext(ctx, type, ctx->access_levels);
