@@ -15,6 +15,8 @@
 #include <unordered_set>
 
 #include <assert.h>
+#include <thread>
+#include <sc-memory/sc_templates.hpp>
 
 namespace impl
 {
@@ -166,10 +168,26 @@ bool Builder::Run(BuilderParams const & params)
     ScAddr x2 = m_ctx->CreateNode(ScType::NodeConst);
     m_ctx->CreateEdge(ScType::EdgeAccess, x, x2);
   }
+  else {
+    x = m_ctx->CreateNode(ScType::NodeConst);
+    m_ctx -> HelperSetSystemIdtf("kb_build_done", x);
+    ScAddr x2 = m_ctx->CreateNode(ScType::NodeConst);
+    m_ctx->CreateEdge(ScType::EdgeAccess, x, x2);
+  }
 
-  m_ctx.reset();
+  //m_ctx.reset();
 
-  ScMemory::Shutdown(true);
+  bool isRun = true;
+
+  while (isRun)
+  {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    ScAddr q = m_ctx->HelperFindBySystemIdtf("SUCCESS");
+    if (q.IsValid()) {
+      isRun = false;
+    }
+  }
+  //ScMemory::Shutdown(true);
 
   return noErrors;
 }

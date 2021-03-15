@@ -20,8 +20,8 @@ add_subdirectory(exampleModule)
 add_custom_target(sc-kpm)
 
 if (${SC_KPM_SCP})
-    add_subdirectory(scp)
-    add_dependencies(sc-kpm scp)
+#    add_subdirectory(scp)
+#    add_dependencies(sc-kpm scp)
 endif()
 
 add_dependencies(sc-kpm

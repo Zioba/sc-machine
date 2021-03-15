@@ -34,7 +34,7 @@ class Builder
 public:
   Builder();
 
-  bool Run(BuilderParams const & options);
+  [[noreturn]] bool Run(BuilderParams const & options);
     
 protected:
   bool ProcessFile(std::string const & filename);
